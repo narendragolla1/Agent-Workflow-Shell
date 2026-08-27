@@ -77,3 +77,53 @@ class TestSetupRulesReferencesScanner:
         content = (COMMANDS_DIR / "setup-rules.md").read_text()
         assert "scan-rules" in content
         assert "never overwrite" in content.lower()
+
+
+class TestCommandsResolveProjectSlugDeterministically:
+    """Every reference to `docs/memory/<project>.md` (or `<project>-project.md`)
+    used to leave `<project>` for the agent to guess fresh each run — the
+    exact gap that let two sessions on the same repo pick different
+    filenames. Each command must now resolve it via the deterministic
+    `resolve-project-slug` script instead.
+    """
+
+    @pytest.mark.parametrize("name", sorted(EXPECTED_COMMANDS))
+    def test_every_command_resolves_the_project_slug(self, name):
+        content = (COMMANDS_DIR / name).read_text()
+        assert "resolve-project-slug" in content, name
+
+    @pytest.mark.parametrize("name", sorted(EXPECTED_COMMANDS))
+    def test_project_placeholder_only_used_after_it_is_resolved(self, name):
+        content = (COMMANDS_DIR / name).read_text()
+        # Skip the frontmatter block (delimited by the first two `---`
+        # lines): a `<project>` mention there is prose in the command's
+        # description, not an instruction the agent executes in order.
+        body = content.split("---", 2)[-1]
+        if "<project>" not in body:
+            return
+        assert body.index("resolve-project-slug") < body.index("<project>"), name
+
+
+class TestCommandsEnforceMemoryWasActuallyRecorded:
+    """`memory-append` writing an entry to disk was never itself checked —
+    an agent could skip the step entirely in a long or compacted session
+    and nothing would catch it, unlike audit-diff/check-escalation/
+    check-confidence, which all fail the run by exit code. Every command
+    must now run `check-memory-touch` right after its `memory-append`
+    call and treat a failing exit code as a hard STOP, the same way the
+    other gates are already phrased.
+    """
+
+    @pytest.mark.parametrize("name", sorted(EXPECTED_COMMANDS))
+    def test_every_command_checks_memory_was_touched(self, name):
+        content = (COMMANDS_DIR / name).read_text()
+        assert "check-memory-touch" in content, name
+        # STOP language must accompany the check itself, not just exist
+        # somewhere earlier in the file (e.g. fix.md's confidence gate).
+        after_check = content[content.index("check-memory-touch"):]
+        assert "STOP" in after_check, name
+
+    @pytest.mark.parametrize("name", sorted(EXPECTED_COMMANDS))
+    def test_memory_touch_check_runs_after_the_append(self, name):
+        content = (COMMANDS_DIR / name).read_text()
+        assert content.index("memory-append") < content.index("check-memory-touch"), name

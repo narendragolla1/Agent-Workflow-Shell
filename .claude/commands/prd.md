@@ -7,7 +7,14 @@ argument-hint: <idea>
 
 Idea: $ARGUMENTS
 
-## 0. Read relevant memory first
+## 0. Resolve project + read relevant memory
+Resolve the canonical project slug once — pinned in `docs/memory/.project-slug`
+on first run so every command agrees on the same memory file:
+```
+agent-workflow-shell resolve-project-slug --root .
+```
+Use the printed value as `<project>` for every `docs/memory/<project>.md`
+reference below, including the append step at the end.
 ```
 agent-workflow-shell memory-search --file docs/memory/<project>.md --keyword "<1-2 keywords>"
 ```
@@ -37,3 +44,13 @@ Append a memory entry:
 agent-workflow-shell memory-append --file docs/memory/<project>.md --command prd \
   --text "<idea>: <direction chosen, 1-3 lines>"
 ```
+
+Then confirm the entry actually landed — this is a hard gate, not optional.
+`git add -N` stages a brand-new memory file's path (without its content)
+so a plain `git diff` picks it up even on the very first entry:
+```
+git add -N docs/memory/<project>.md 2>/dev/null; git diff | agent-workflow-shell check-memory-touch --memory-file docs/memory/<project>.md
+```
+- Exit code 0: memory was recorded — done.
+- Exit code 1: STOP. The append never landed. Do not hand off until this
+  passes.

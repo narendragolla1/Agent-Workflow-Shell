@@ -92,11 +92,26 @@ class TestScanProjectPythonEcosystem:
         profile = scan_project(tmp_path)
         assert "poetry" in profile.package_managers
         assert "pip" not in profile.package_managers
+        assert profile.project_name == "svc"
 
     def test_pyproject_without_poetry_table_defaults_to_pip(self, tmp_path):
         write(tmp_path / "pyproject.toml", "[project]\nname = \"svc\"\n")
         profile = scan_project(tmp_path)
         assert "pip" in profile.package_managers
+        assert profile.project_name == "svc"
+
+    def test_pyproject_name_falls_back_to_directory_when_absent(self, tmp_path):
+        project_dir = tmp_path / "unnamed-service"
+        project_dir.mkdir()
+        write(project_dir / "pyproject.toml", "[build-system]\nrequires = []\n")
+        profile = scan_project(project_dir)
+        assert profile.project_name == "unnamed-service"
+
+    def test_node_project_json_name_takes_priority_over_pyproject_name(self, tmp_path):
+        write(tmp_path / "package.json", json.dumps({"name": "node-name"}))
+        write(tmp_path / "pyproject.toml", "[project]\nname = \"python-name\"\n")
+        profile = scan_project(tmp_path)
+        assert profile.project_name == "node-name"
 
     def test_requirements_without_pytest_leaves_test_frameworks_empty(self, tmp_path):
         write(tmp_path / "requirements.txt", "flask==2.0\n")

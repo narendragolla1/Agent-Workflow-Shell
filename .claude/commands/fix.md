@@ -9,7 +9,18 @@ Bug to fix: $ARGUMENTS
 
 Run every step below in order. Do not skip a step because the bug "looks simple."
 
-## 0. Read relevant memory first
+## 0. Resolve project + read relevant memory
+Resolve the canonical project slug once — this pins `docs/memory/.project-slug`
+on first run so every command, this session or a later one, agrees on the
+same memory file instead of guessing a name:
+
+```
+agent-workflow-shell resolve-project-slug --root .
+```
+
+Use the printed value as `<project>` for every `docs/memory/<project>.md`
+reference below, including the append step at the end.
+
 Before investigating, grep prior context instead of re-discovering it:
 
 ```
@@ -73,6 +84,19 @@ Append a 1-3 line entry recording the root cause (not the whole fix):
 agent-workflow-shell memory-append --file docs/memory/<project>.md --command fix \
   --text "<root cause in 1-3 short lines>"
 ```
+
+Then confirm the entry actually landed — this is a hard gate, not optional.
+`git add -N` stages a brand-new memory file's path (without its content)
+so a plain `git diff` picks it up even on the very first entry:
+
+```
+git add -N docs/memory/<project>.md 2>/dev/null; git diff | agent-workflow-shell check-memory-touch --memory-file docs/memory/<project>.md
+```
+
+- Exit code 0: memory was recorded — continue to Report.
+- Exit code 1: STOP. The append never landed (or landed at a different
+  path than `docs/memory/<project>.md`). Do not report the fix done until
+  this passes.
 
 ## 8. Report
 Summarize: symptom -> root cause (`file:line`) -> fix -> verification run. Nothing else.

@@ -22,6 +22,8 @@ from typing import List, Optional, Sequence
 from .diff_audit import audit_diff
 from .fix_escalation import check_confidence_gate, should_escalate_to_spec
 from .memory import append_entry, search_memory
+from .memory_gate import check_memory_touch
+from .project_slug import resolve_project_slug
 from .rules_generator import render_rules_doc, scan_project
 from .skill_portability import check_portability
 
@@ -97,6 +99,30 @@ def _cmd_memory_search(args: argparse.Namespace) -> int:
     return 0 if results else 1
 
 
+def _cmd_check_memory_touch(args: argparse.Namespace) -> int:
+    if args.diff_file:
+        diff_text = Path(args.diff_file).read_text()
+    else:
+        diff_text = sys.stdin.read()
+
+    try:
+        result = check_memory_touch(diff_text, args.memory_file)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    print(
+        json.dumps(
+            {
+                "passed": result.passed,
+                "memory_file": result.memory_file,
+                "touched_files": list(result.touched_files),
+            }
+        )
+    )
+    return 0 if result.passed else 1
+
+
 def _cmd_check_skill_portability(args: argparse.Namespace) -> int:
     skill_markdown = Path(args.file).read_text()
     identifiers = _split_csv(args.identifiers) or None
@@ -107,6 +133,16 @@ def _cmd_check_skill_portability(args: argparse.Namespace) -> int:
     )
     print(json.dumps({"passed": result.passed, "violations": list(result.violations)}))
     return 0 if result.passed else 1
+
+
+def _cmd_resolve_project_slug(args: argparse.Namespace) -> int:
+    try:
+        slug = resolve_project_slug(args.root, force=args.refresh)
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    print(slug)
+    return 0
 
 
 def _cmd_scan_rules(args: argparse.Namespace) -> int:
@@ -168,6 +204,14 @@ def _build_parser() -> argparse.ArgumentParser:
     mem_search.add_argument("--keyword", required=True)
     mem_search.set_defaults(func=_cmd_memory_search)
 
+    mem_touch = subparsers.add_parser(
+        "check-memory-touch",
+        help="verify a diff actually appended to the project's persistent memory file",
+    )
+    mem_touch.add_argument("--diff-file", help="path to a unified diff; defaults to stdin")
+    mem_touch.add_argument("--memory-file", required=True)
+    mem_touch.set_defaults(func=_cmd_check_memory_touch)
+
     portability = subparsers.add_parser(
         "check-skill-portability", help="run the /create-skill portability check"
     )
@@ -175,6 +219,18 @@ def _build_parser() -> argparse.ArgumentParser:
     portability.add_argument("--identifiers", help="comma-separated session-specific identifiers")
     portability.add_argument("--max-tokens", type=int, default=100)
     portability.set_defaults(func=_cmd_check_skill_portability)
+
+    resolve_slug = subparsers.add_parser(
+        "resolve-project-slug",
+        help="resolve (and pin) the canonical project slug used for docs/memory/<slug>.md",
+    )
+    resolve_slug.add_argument("--root", required=True)
+    resolve_slug.add_argument(
+        "--refresh",
+        action="store_true",
+        help="recompute and overwrite the pinned slug instead of reusing it",
+    )
+    resolve_slug.set_defaults(func=_cmd_resolve_project_slug)
 
     scan = subparsers.add_parser(
         "scan-rules", help="scan a project and render docs/rules/<project>-project.md"

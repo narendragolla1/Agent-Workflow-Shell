@@ -8,6 +8,16 @@ argument-hint: [topic]
 Topic: $ARGUMENTS (if blank, review this session for a repeatable pattern
 worth capturing instead of asking the user to supply one)
 
+## 0. Resolve project slug
+Resolve the canonical project slug once — pinned in `docs/memory/.project-slug`
+on first run so every command agrees on the same memory file:
+
+```
+agent-workflow-shell resolve-project-slug --root .
+```
+
+Use the printed value as `<project>` in the memory-append step at the end.
+
 ## 1. Find the pattern
 - **Blank**: look back over this session for something you did more than
   once, or something non-obvious enough that a future session would
@@ -48,3 +58,13 @@ against a *different* repo, not just this one.
 agent-workflow-shell memory-append --file docs/memory/<project>.md --command create-skill \
   --text "Captured skill: <slug> — <what pattern it covers, 1-2 lines>"
 ```
+
+Then confirm the entry actually landed — this is a hard gate, not optional.
+`git add -N` stages a brand-new memory file's path (without its content)
+so a plain `git diff` picks it up even on the very first entry:
+```
+git add -N docs/memory/<project>.md 2>/dev/null; git diff | agent-workflow-shell check-memory-touch --memory-file docs/memory/<project>.md
+```
+- Exit code 0: memory was recorded — done.
+- Exit code 1: STOP. The append never landed. Do not present the skill as
+  done until this passes.

@@ -5,6 +5,18 @@ argument-hint: (no arguments)
 
 # /setup-rules — generate project conventions doc
 
+## 0. Resolve project slug
+Resolve the canonical project slug once — pinned in `docs/memory/.project-slug`
+on first run so `/setup-rules` and every other command agree on the same
+name instead of each guessing independently:
+
+```
+agent-workflow-shell resolve-project-slug --root .
+```
+
+Use the printed value as `<project>` everywhere below, in this file's
+`--out` path and in the memory-append step.
+
 ## 1. Scan
 Run the deterministic scanner (manifests + lockfiles + top-level structure
 only — never a full-tree dump):
@@ -42,3 +54,13 @@ If neither file exists, tell the user the rules doc was generated at
 agent-workflow-shell memory-append --file docs/memory/<project>.md --command setup-rules \
   --text "Rules regenerated: <one line on what changed since last run, or 'initial generation'>"
 ```
+
+Then confirm the entry actually landed — this is a hard gate, not optional.
+`git add -N` stages a brand-new memory file's path (without its content)
+so a plain `git diff` picks it up even on the very first entry:
+```
+git add -N docs/memory/<project>.md 2>/dev/null; git diff | agent-workflow-shell check-memory-touch --memory-file docs/memory/<project>.md
+```
+- Exit code 0: memory was recorded — done.
+- Exit code 1: STOP. The append never landed. Do not report the rules doc
+  done until this passes.
