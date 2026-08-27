@@ -1,0 +1,11 @@
+{
+  "name": "sample-widget-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reference sample project used to exercise /setup-rules and the /fix, /spec, /build, /create-skill workflow commands end-to-end.",
+  "scripts": {
+    "test": "node --test test/chunk.test.js",
+    "lint": "node --check src/chunk.js",
+    "build": "node -e \"console.log('nothing to build')\""
+  }
+}
