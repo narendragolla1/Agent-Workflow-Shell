@@ -150,6 +150,83 @@ class TestMemoryCommands:
         assert "line" in err.lower()
 
 
+class TestCheckMemoryTouchCommand:
+    def _diff(self, path):
+        return (
+            f"diff --git a/{path} b/{path}\n"
+            f"--- a/{path}\n"
+            f"+++ b/{path}\n"
+            "@@ -0,0 +1,1 @@\n"
+            "+- [2026-01-01] [fix] note\n"
+        )
+
+    def test_diff_touching_memory_file_exits_zero(self, tmp_path, capsys):
+        diff_file = tmp_path / "d.diff"
+        diff_file.write_text(self._diff("docs/memory/widget-app.md"))
+        code = main(
+            [
+                "check-memory-touch",
+                "--diff-file",
+                str(diff_file),
+                "--memory-file",
+                "docs/memory/widget-app.md",
+            ]
+        )
+        assert code == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["passed"] is True
+
+    def test_reads_diff_from_stdin_when_no_file_given(self, capsys, monkeypatch):
+        monkeypatch.setattr(
+            "sys.stdin",
+            __import__("io").StringIO(self._diff("docs/memory/widget-app.md")),
+        )
+        code = main(
+            ["check-memory-touch", "--memory-file", "docs/memory/widget-app.md"]
+        )
+        assert code == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["passed"] is True
+
+    def test_empty_diff_exits_one(self, capsys, monkeypatch):
+        monkeypatch.setattr("sys.stdin", __import__("io").StringIO(""))
+        code = main(
+            ["check-memory-touch", "--memory-file", "docs/memory/widget-app.md"]
+        )
+        assert code == 1
+
+    def test_diff_missing_memory_file_exits_one(self, tmp_path, capsys):
+        diff_file = tmp_path / "d.diff"
+        diff_file.write_text(self._diff("src/mod.py"))
+        code = main(
+            [
+                "check-memory-touch",
+                "--diff-file",
+                str(diff_file),
+                "--memory-file",
+                "docs/memory/widget-app.md",
+            ]
+        )
+        assert code == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["passed"] is False
+
+    def test_empty_memory_file_arg_exits_two(self, tmp_path, capsys):
+        diff_file = tmp_path / "d.diff"
+        diff_file.write_text(self._diff("src/mod.py"))
+        code = main(
+            [
+                "check-memory-touch",
+                "--diff-file",
+                str(diff_file),
+                "--memory-file",
+                "",
+            ]
+        )
+        assert code == 2
+        assert capsys.readouterr().err.strip()
+
+
 class TestSkillPortabilityCommand:
     def test_portable_skill_passes(self, tmp_path, capsys):
         skill_file = tmp_path / "SKILL.md"
@@ -219,6 +296,18 @@ class TestResolveProjectSlugCommand:
         )
         assert code == 2
         assert capsys.readouterr().err.strip()
+
+    def test_refresh_flag_overwrites_a_stale_pinned_slug(self, tmp_path, capsys):
+        (tmp_path / "package.json").write_text('{"name": "widget-app"}')
+        main(["resolve-project-slug", "--root", str(tmp_path)])
+        capsys.readouterr()
+
+        (tmp_path / "package.json").write_text('{"name": "renamed-app"}')
+        code = main(
+            ["resolve-project-slug", "--root", str(tmp_path), "--refresh"]
+        )
+        assert code == 0
+        assert capsys.readouterr().out.strip() == "renamed-app"
 
 
 class TestArgparseErrors:

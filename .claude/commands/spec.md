@@ -59,3 +59,13 @@ Append a memory entry:
 agent-workflow-shell memory-append --file docs/memory/<project>.md --command spec \
   --text "<feature>: <key decision or gotcha, 1-3 lines>"
 ```
+
+Then confirm the entry actually landed — this is a hard gate, not optional.
+`git add -N` stages a brand-new memory file's path (without its content)
+so a plain `git diff` picks it up even on the very first entry:
+```
+git add -N docs/memory/<project>.md 2>/dev/null; git diff | agent-workflow-shell check-memory-touch --memory-file docs/memory/<project>.md
+```
+- Exit code 0: memory was recorded — done.
+- Exit code 1: STOP. The append never landed. Do not report the feature
+  done until this passes.

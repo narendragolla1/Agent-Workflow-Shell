@@ -102,3 +102,28 @@ class TestCommandsResolveProjectSlugDeterministically:
         if "<project>" not in body:
             return
         assert body.index("resolve-project-slug") < body.index("<project>"), name
+
+
+class TestCommandsEnforceMemoryWasActuallyRecorded:
+    """`memory-append` writing an entry to disk was never itself checked —
+    an agent could skip the step entirely in a long or compacted session
+    and nothing would catch it, unlike audit-diff/check-escalation/
+    check-confidence, which all fail the run by exit code. Every command
+    must now run `check-memory-touch` right after its `memory-append`
+    call and treat a failing exit code as a hard STOP, the same way the
+    other gates are already phrased.
+    """
+
+    @pytest.mark.parametrize("name", sorted(EXPECTED_COMMANDS))
+    def test_every_command_checks_memory_was_touched(self, name):
+        content = (COMMANDS_DIR / name).read_text()
+        assert "check-memory-touch" in content, name
+        # STOP language must accompany the check itself, not just exist
+        # somewhere earlier in the file (e.g. fix.md's confidence gate).
+        after_check = content[content.index("check-memory-touch"):]
+        assert "STOP" in after_check, name
+
+    @pytest.mark.parametrize("name", sorted(EXPECTED_COMMANDS))
+    def test_memory_touch_check_runs_after_the_append(self, name):
+        content = (COMMANDS_DIR / name).read_text()
+        assert content.index("memory-append") < content.index("check-memory-touch"), name

@@ -1,1 +1,2 @@
 - [2026-08-27] [build] Added deterministic project-slug resolution (project_slug.py + resolve-project-slug CLI) so every command derives docs/memory/<slug>.md the same way instead of guessing <project> per session.
+- [2026-08-27] [build] Added check-memory-touch gate (memory_gate.py) + resolve-project-slug --refresh; every command now fails by exit code if memory-append never landed in the diff.

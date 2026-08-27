@@ -69,3 +69,20 @@ class TestResolveProjectSlug:
     def test_nonexistent_root_raises(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             resolve_project_slug(tmp_path / "does-not-exist")
+
+    def test_force_recomputes_and_overwrites_a_bad_pin(self, tmp_path):
+        # Simulates the recovery path: the first resolution happened
+        # before any manifest existed (a generic checkout directory name
+        # got pinned permanently), then a manifest was added later.
+        wrong_first_resolution = resolve_project_slug(tmp_path)
+        assert wrong_first_resolution == slugify(tmp_path.name)
+
+        (tmp_path / "package.json").write_text(json.dumps({"name": "widget-app"}))
+        still_pinned = resolve_project_slug(tmp_path)
+        assert still_pinned == wrong_first_resolution
+
+        refreshed = resolve_project_slug(tmp_path, force=True)
+        assert refreshed == "widget-app"
+
+        pin_path = tmp_path / "docs" / "memory" / ".project-slug"
+        assert pin_path.read_text().strip() == "widget-app"

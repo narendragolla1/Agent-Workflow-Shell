@@ -95,6 +95,15 @@ def _parse_diff(diff_text: str) -> dict:
     return files
 
 
+def list_touched_files(diff_text: str) -> frozenset:
+    """Return the set of file paths (post-change side) touched by a
+    unified diff. Shared with `memory_gate.check_memory_touch`, which
+    needs the same touched-file extraction this module already does for
+    the out-of-scope-files check.
+    """
+    return frozenset(_parse_diff(diff_text).keys())
+
+
 def _looks_like_test_file(path: str) -> bool:
     return bool(_TEST_PATH_RE.search(path))
 

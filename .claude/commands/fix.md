@@ -85,5 +85,18 @@ agent-workflow-shell memory-append --file docs/memory/<project>.md --command fix
   --text "<root cause in 1-3 short lines>"
 ```
 
+Then confirm the entry actually landed — this is a hard gate, not optional.
+`git add -N` stages a brand-new memory file's path (without its content)
+so a plain `git diff` picks it up even on the very first entry:
+
+```
+git add -N docs/memory/<project>.md 2>/dev/null; git diff | agent-workflow-shell check-memory-touch --memory-file docs/memory/<project>.md
+```
+
+- Exit code 0: memory was recorded — continue to Report.
+- Exit code 1: STOP. The append never landed (or landed at a different
+  path than `docs/memory/<project>.md`). Do not report the fix done until
+  this passes.
+
 ## 8. Report
 Summarize: symptom -> root cause (`file:line`) -> fix -> verification run. Nothing else.

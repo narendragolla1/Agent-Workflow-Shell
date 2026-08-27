@@ -58,3 +58,13 @@ against a *different* repo, not just this one.
 agent-workflow-shell memory-append --file docs/memory/<project>.md --command create-skill \
   --text "Captured skill: <slug> — <what pattern it covers, 1-2 lines>"
 ```
+
+Then confirm the entry actually landed — this is a hard gate, not optional.
+`git add -N` stages a brand-new memory file's path (without its content)
+so a plain `git diff` picks it up even on the very first entry:
+```
+git add -N docs/memory/<project>.md 2>/dev/null; git diff | agent-workflow-shell check-memory-touch --memory-file docs/memory/<project>.md
+```
+- Exit code 0: memory was recorded — done.
+- Exit code 1: STOP. The append never landed. Do not present the skill as
+  done until this passes.

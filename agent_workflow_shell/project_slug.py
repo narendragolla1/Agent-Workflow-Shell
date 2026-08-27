@@ -36,18 +36,24 @@ def slugify(name: str) -> str:
     return slug or "project"
 
 
-def resolve_project_slug(root: PathLike, *, memory_dir: PathLike = "docs/memory") -> str:
+def resolve_project_slug(
+    root: PathLike, *, memory_dir: PathLike = "docs/memory", force: bool = False
+) -> str:
     """Resolve the canonical project slug for `root`, pinning it on first use.
 
     The slug is cached at `<root>/<memory_dir>/.project-slug`. Once
     written, that pinned value is always returned — even if the
     underlying manifest name changes later — so `docs/memory/<slug>.md`
     stays the same file across every command and every session.
+
+    Pass `force=True` to recompute and overwrite the pin — the recovery
+    path for a bad first resolution (e.g. one made before any manifest
+    existed, or from a generic checkout directory name).
     """
     root_path = Path(root)
     pin_path = root_path / Path(memory_dir) / _PIN_FILENAME
 
-    if pin_path.exists():
+    if not force and pin_path.exists():
         cached = pin_path.read_text().strip()
         if cached:
             return cached

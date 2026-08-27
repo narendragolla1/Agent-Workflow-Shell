@@ -46,6 +46,7 @@ command markdown files, and makes `agent_workflow_shell` importable.
 | `build_loop.py` | `/build` | Round-capped goal loop: 3 normal rounds + 1 automatic extension, oracle-criterion tracking, strict pass/fail judging (never partial). |
 | `memory.py` | all commands | Append-only, 1-3 line persistent memory log per project, with keyword search. |
 | `project_slug.py` | all commands | Derives the canonical `<project>` slug for `docs/memory/<project>.md` from `rules_generator.scan_project` and pins it to `docs/memory/.project-slug` on first use, so every command — this session or a later one — resolves the same slug instead of guessing a name each run. |
+| `memory_gate.py` | all commands | Checks whether a command's diff actually touched `docs/memory/<project>.md`, the same way `diff_audit` checks diff quality — fails by exit code if the memory-append step was skipped. |
 | `skill_portability.py` | `/create-skill` | Rejects a drafted skill that leaks session-specific identifiers, hardcoded absolute paths, or an over-budget description. |
 | `rules_generator.py` | `/setup-rules` | Scans manifests (package.json, pyproject.toml, requirements.txt, Cargo.toml, go.mod) — never a full-tree dump — to detect stack, commands, and structure. |
 | `cli.py` | all of the above | `agent-workflow-shell <subcommand>` wiring: JSON out, exit code signals pass/fail. |
@@ -78,6 +79,16 @@ checked for portability across two different sample repos.
   first use — so two sessions on the same repo always land on the same
   memory file instead of silently fragmenting into `project.md` vs.
   `agent-workflow-shell.md` vs. whatever a given run felt like calling it.
+  If the pin is ever wrong (e.g. resolved from a generic checkout
+  directory name before any manifest existed), recover with
+  `agent-workflow-shell resolve-project-slug --root . --refresh` — this
+  recomputes the slug and overwrites the pin. Note this does not rename
+  or migrate an existing `docs/memory/<old-slug>.md`; move its content by
+  hand if you want history to carry over. Every command also runs
+  `check-memory-touch` right after its `memory-append` call and treats a
+  failing exit code as a hard stop — the same enforcement tier as the
+  anti-hardcoding audit, so "append a memory entry" can no longer be
+  silently skipped without the run itself flagging it.
 - **Token-cost controls**: no command loads the full repo into context
   (grep/ripgrep + targeted reads only); retries are capped explicitly
   (`/build`'s round cap, `/fix`'s escalate-to-spec rule) so cost scales
