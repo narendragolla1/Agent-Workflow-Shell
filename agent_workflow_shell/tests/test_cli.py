@@ -196,6 +196,31 @@ class TestScanRulesCommand:
         assert "pytest" in out_file.read_text()
 
 
+class TestResolveProjectSlugCommand:
+    def test_prints_slug_and_exits_zero(self, tmp_path, capsys):
+        (tmp_path / "package.json").write_text('{"name": "Widget App"}')
+        code = main(["resolve-project-slug", "--root", str(tmp_path)])
+        assert code == 0
+        assert capsys.readouterr().out.strip() == "widget-app"
+
+    def test_second_invocation_reuses_pinned_slug(self, tmp_path, capsys):
+        (tmp_path / "package.json").write_text('{"name": "widget-app"}')
+        main(["resolve-project-slug", "--root", str(tmp_path)])
+        capsys.readouterr()
+
+        (tmp_path / "package.json").write_text('{"name": "renamed-app"}')
+        code = main(["resolve-project-slug", "--root", str(tmp_path)])
+        assert code == 0
+        assert capsys.readouterr().out.strip() == "widget-app"
+
+    def test_nonexistent_root_exits_two(self, tmp_path, capsys):
+        code = main(
+            ["resolve-project-slug", "--root", str(tmp_path / "missing")]
+        )
+        assert code == 2
+        assert capsys.readouterr().err.strip()
+
+
 class TestArgparseErrors:
     def test_unknown_subcommand_raises_system_exit(self):
         with pytest.raises(SystemExit):

@@ -9,7 +9,18 @@ Bug to fix: $ARGUMENTS
 
 Run every step below in order. Do not skip a step because the bug "looks simple."
 
-## 0. Read relevant memory first
+## 0. Resolve project + read relevant memory
+Resolve the canonical project slug once — this pins `docs/memory/.project-slug`
+on first run so every command, this session or a later one, agrees on the
+same memory file instead of guessing a name:
+
+```
+agent-workflow-shell resolve-project-slug --root .
+```
+
+Use the printed value as `<project>` for every `docs/memory/<project>.md`
+reference below, including the append step at the end.
+
 Before investigating, grep prior context instead of re-discovering it:
 
 ```

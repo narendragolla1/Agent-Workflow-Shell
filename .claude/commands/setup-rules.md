@@ -5,6 +5,18 @@ argument-hint: (no arguments)
 
 # /setup-rules — generate project conventions doc
 
+## 0. Resolve project slug
+Resolve the canonical project slug once — pinned in `docs/memory/.project-slug`
+on first run so `/setup-rules` and every other command agree on the same
+name instead of each guessing independently:
+
+```
+agent-workflow-shell resolve-project-slug --root .
+```
+
+Use the printed value as `<project>` everywhere below, in this file's
+`--out` path and in the memory-append step.
+
 ## 1. Scan
 Run the deterministic scanner (manifests + lockfiles + top-level structure
 only — never a full-tree dump):

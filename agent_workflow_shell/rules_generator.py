@@ -32,6 +32,29 @@ _IGNORED_DIR_NAMES = {
 
 _JS_TEST_FRAMEWORKS = ("jest", "mocha", "vitest", "jasmine", "ava")
 
+_TOML_SECTION_RE = re.compile(r"^\[([^\]]+)\]\s*$", re.MULTILINE)
+_TOML_NAME_RE = re.compile(r'^name\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
+
+
+def _extract_pyproject_name(pyproject_text: str) -> Optional[str]:
+    """Read `name` from the `[project]` or `[tool.poetry]` table.
+
+    Regex-based (no toml dependency), matching the rest of this module's
+    manifest scanning — scoped to those two tables so an unrelated `name =`
+    elsewhere in the file (e.g. under `[tool.*]`) can't be mistaken for the
+    project name.
+    """
+    sections = list(_TOML_SECTION_RE.finditer(pyproject_text))
+    for index, section in enumerate(sections):
+        if section.group(1) not in ("project", "tool.poetry"):
+            continue
+        start = section.end()
+        end = sections[index + 1].start() if index + 1 < len(sections) else len(pyproject_text)
+        name_match = _TOML_NAME_RE.search(pyproject_text[start:end])
+        if name_match:
+            return name_match.group(1)
+    return None
+
 
 @dataclass(frozen=True)
 class ProjectProfile:
@@ -99,10 +122,12 @@ def _scan_python(root: Path):
         return None
 
     manager = "pip"
+    project_name = None
     if pyproject_path.exists():
         pyproject_text = pyproject_path.read_text()
         if re.search(r"^\[tool\.poetry\]", pyproject_text, re.MULTILINE):
             manager = "poetry"
+        project_name = _extract_pyproject_name(pyproject_text)
 
     has_pytest = False
     if requirements_path.exists():
@@ -119,6 +144,7 @@ def _scan_python(root: Path):
         "manager": manager,
         "test_frameworks": ("pytest",) if has_pytest else (),
         "test_command": "pytest" if has_pytest else None,
+        "project_name": project_name,
     }
 
 
@@ -154,6 +180,7 @@ def scan_project(root: PathLike) -> ProjectProfile:
         package_managers.append(python["manager"])
         test_frameworks += python["test_frameworks"]
         test_command = test_command or python["test_command"]
+        project_name = project_name or python["project_name"]
 
     if (root_path / "Cargo.toml").exists():
         languages.append("Rust")

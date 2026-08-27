@@ -15,7 +15,14 @@ COMPLETE status) are implemented and unit-tested in
 logic here even though you (the agent) are the judge, not a Python
 callback — the discipline is identical.
 
-## 0. Read relevant memory first
+## 0. Resolve project + read relevant memory
+Resolve the canonical project slug once — pinned in `docs/memory/.project-slug`
+on first run so every command agrees on the same memory file:
+```
+agent-workflow-shell resolve-project-slug --root .
+```
+Use the printed value as `<project>` for every `docs/memory/<project>.md`
+reference below, including the append step at the end.
 ```
 agent-workflow-shell memory-search --file docs/memory/<project>.md --keyword "<1-2 keywords>"
 ```

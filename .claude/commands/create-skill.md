@@ -8,6 +8,16 @@ argument-hint: [topic]
 Topic: $ARGUMENTS (if blank, review this session for a repeatable pattern
 worth capturing instead of asking the user to supply one)
 
+## 0. Resolve project slug
+Resolve the canonical project slug once — pinned in `docs/memory/.project-slug`
+on first run so every command agrees on the same memory file:
+
+```
+agent-workflow-shell resolve-project-slug --root .
+```
+
+Use the printed value as `<project>` in the memory-append step at the end.
+
 ## 1. Find the pattern
 - **Blank**: look back over this session for something you did more than
   once, or something non-obvious enough that a future session would

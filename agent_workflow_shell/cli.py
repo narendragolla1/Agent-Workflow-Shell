@@ -22,6 +22,7 @@ from typing import List, Optional, Sequence
 from .diff_audit import audit_diff
 from .fix_escalation import check_confidence_gate, should_escalate_to_spec
 from .memory import append_entry, search_memory
+from .project_slug import resolve_project_slug
 from .rules_generator import render_rules_doc, scan_project
 from .skill_portability import check_portability
 
@@ -109,6 +110,16 @@ def _cmd_check_skill_portability(args: argparse.Namespace) -> int:
     return 0 if result.passed else 1
 
 
+def _cmd_resolve_project_slug(args: argparse.Namespace) -> int:
+    try:
+        slug = resolve_project_slug(args.root)
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    print(slug)
+    return 0
+
+
 def _cmd_scan_rules(args: argparse.Namespace) -> int:
     try:
         profile = scan_project(args.root)
@@ -175,6 +186,13 @@ def _build_parser() -> argparse.ArgumentParser:
     portability.add_argument("--identifiers", help="comma-separated session-specific identifiers")
     portability.add_argument("--max-tokens", type=int, default=100)
     portability.set_defaults(func=_cmd_check_skill_portability)
+
+    resolve_slug = subparsers.add_parser(
+        "resolve-project-slug",
+        help="resolve (and pin) the canonical project slug used for docs/memory/<slug>.md",
+    )
+    resolve_slug.add_argument("--root", required=True)
+    resolve_slug.set_defaults(func=_cmd_resolve_project_slug)
 
     scan = subparsers.add_parser(
         "scan-rules", help="scan a project and render docs/rules/<project>-project.md"
